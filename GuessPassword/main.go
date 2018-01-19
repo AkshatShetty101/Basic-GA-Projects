@@ -12,8 +12,8 @@ func main() {
 	geneset := " abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!."
 	sliceGeneset := strings.Split(geneset, "")
 	target := "Hello World!"
+	fmt.Println("Password : ", target)
 	bestParent := generateParent(sliceGeneset, 12)
-	fmt.Println(len(bestParent))
 	bestFitness := getFitness(bestParent, target)
 	display(bestParent, bestFitness, start)
 	for {
@@ -40,7 +40,6 @@ func generateParent(geneset []string, length int) string {
 		newPosition := r.Intn(len(geneset) - 1)
 		output += geneset[newPosition]
 	}
-	fmt.Println(output)
 	return output
 }
 
