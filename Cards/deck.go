@@ -36,7 +36,6 @@ func deal(d deck, handSize int) (deck, deck) {
 }
 
 func (d deck) toString() string {
-	fmt.Println(d)
 	return strings.Join([]string(d), ",")
 }
 
@@ -50,7 +49,6 @@ func newDeckFromFile(filename string) deck {
 		fmt.Println("Error:-", err)
 		os.Exit(1)
 	}
-	fmt.Println(bs)
 	s := strings.Split(string(bs), ",")
 	deck := deck(s)
 	return deck
