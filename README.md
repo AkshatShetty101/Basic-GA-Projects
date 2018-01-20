@@ -18,3 +18,6 @@ To implement a sorting numbers based on the principles of Genetic Algorithms
 
 Project 8Queens:-
 To solve the 8 queens problem using the principles of Genetic Algorithms
+
+Project CardProblem:-
+To solve the 10 card problem problem using the principles of Genetic Algorithms
