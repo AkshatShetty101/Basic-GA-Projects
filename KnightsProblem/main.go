@@ -18,29 +18,44 @@ func main() {
 	xMax := 8
 	yMax := 8
 	var board [8][8]string
-	nKnights := 14
-	knightsLocation := make([]Position, nKnights)
-	bestParent := setStartLocation(knightsLocation, xMax, yMax)
-	att := calcKnightAttack(bestParent, xMax, yMax)
-	bestFitness := getFitness(att)
-	display(&board, bestParent, att, bestFitness, start)
+	nKnights := 1
+	flag := 0
+	count := 0
 	for {
-		tmp := make([]Position, len(bestParent))
-		copy(tmp, bestParent)
-		child := mutate(tmp, xMax, yMax)
-		attChild := calcKnightAttack(child, xMax, yMax)
-		childFitness := getFitness(attChild)
-		if childFitness < bestFitness {
-			continue
+		knightsLocation := make([]Position, nKnights)
+		bestParent := setStartLocation(knightsLocation, xMax, yMax)
+		att := calcKnightAttack(bestParent, xMax, yMax)
+		bestFitness := getFitness(att)
+		display(&board, bestParent, att, bestFitness, start)
+		count = 0
+		for {
+			count++
+			if count == 12000 {
+				break
+			}
+			tmp := make([]Position, len(bestParent))
+			copy(tmp, bestParent)
+			child := mutate(tmp, xMax, yMax)
+			attChild := calcKnightAttack(child, xMax, yMax)
+			childFitness := getFitness(attChild)
+			if childFitness < bestFitness {
+				continue
+			}
+			display(&board, child, attChild, childFitness, start)
+			if childFitness == xMax*yMax {
+				flag = 1
+				break
+			}
+			bestParent = child
+			bestFitness = childFitness
 		}
-		display(&board, child, attChild, childFitness, start)
-		if childFitness == xMax*yMax {
+		if flag == 1 {
 			break
+		} else {
+			nKnights++
 		}
-		bestParent = child
-		bestFitness = childFitness
 	}
-	fmt.Println("Finished!")
+	fmt.Println("Finished! Knights used :", nKnights)
 }
 
 func setStartLocation(q []Position, xMax int, yMax int) []Position {
