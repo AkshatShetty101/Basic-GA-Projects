@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"time"
 )
 
@@ -20,6 +21,19 @@ func main() {
 	expectedSum := n * (n*n + 1) / 2
 	bestFitness := getFitness(bestParent, expectedSum)
 	display(bestParent, bestFitness, start)
+	for {
+		child := mutate(bestParent)
+		childFitness := getFitness(child, expectedSum)
+		if childFitness > bestFitness {
+			display(child, childFitness, start)
+		}
+		if childFitness >= bestFitness {
+			bestParent, bestFitness = child, childFitness
+		}
+		if bestFitness == len(bestParent)*len(bestParent) {
+			break
+		}
+	}
 }
 
 func getFitness(parent [][]int, expectedSum int) int {
@@ -69,4 +83,25 @@ func display(parent [][]int, fitness int, start time.Time) {
 		}
 		fmt.Println()
 	}
+}
+
+func mutate(parent [][]int) [][]int {
+	source := rand.NewSource(time.Now().UnixNano())
+	source1 := rand.NewSource(time.Now().UnixNano() + time.Now().UnixNano())
+	r := rand.New(source)
+	r1 := rand.New(source1)
+	for i := 0; i < 5; i++ {
+		for {
+			number := r.Intn(len(parent) * len(parent))
+			number1 := r1.Intn(len(parent) * len(parent))
+			if number != number1 {
+				parent[int(math.Floor(float64(number/len(parent))))][number%len(parent)],
+					parent[int(math.Floor(float64(number1/len(parent))))][number1%len(parent)] = parent[int(math.Floor(float64(number1/len(parent))))][number1%len(parent)],
+					parent[int(math.Floor(float64(number/len(parent))))][number%len(parent)]
+				// fmt.Println(parent, number, number1)
+				break
+			}
+		}
+	}
+	return parent
 }
