@@ -7,44 +7,60 @@ import (
 	"time"
 )
 
+// Chromosome represents each
+type Chromosome struct {
+	genes   [][]int
+	fitness int
+	age     int
+}
+
+func initialize(n int, expectedSum int) Chromosome {
+	parent := Chromosome{}
+	parent.genes = make([][]int, n, n)
+	for i := 0; i < (n * n); i++ {
+		parent.genes[int(math.Floor(float64(i/n)))] = append(parent.genes[int(math.Floor(float64(i/n)))], (i + 1))
+	}
+	parent.fitness = getFitness(parent, expectedSum)
+	parent.age = 0
+	return parent
+}
+
 func main() {
 	start := time.Now()
 	n := 0
 	fmt.Print("Enter the number whose magic square is required: ")
 	fmt.Scanln(&n)
 	geneSet := make([]int, n*n)
-	bestParent := make([][]int, n, n)
+	expectedSum := n * (n*n + 1) / 2
+	bestParent := initialize(n, expectedSum)
 	for i := 0; i < len(geneSet); i++ {
 		geneSet[i] = i + 1
-		bestParent[int(math.Floor(float64(i/n)))] = append(bestParent[int(math.Floor(float64(i/n)))], (i + 1))
 	}
-	expectedSum := n * (n*n + 1) / 2
-	bestFitness := getFitness(bestParent, expectedSum)
-	display(bestParent, bestFitness, start)
+	display(bestParent, start)
 	for {
 		child := mutate(bestParent)
-		childFitness := getFitness(child, expectedSum)
-		if childFitness < bestFitness {
-			bestParent, bestFitness = child, childFitness
-			display(child, childFitness, start)
+		child.fitness = getFitness(child, expectedSum)
+		if child.fitness < bestParent.fitness {
+			bestParent = child
+			display(child, start)
 		}
-		if bestFitness == 0 {
+		if bestParent.fitness == 0 {
 			break
 		}
 	}
 }
 
-func getFitness(parent [][]int, expectedSum int) int {
+func getFitness(p Chromosome, expectedSum int) int {
 	seDiag, neDiag, sum := 0, 0, 0
-	for i := 0; i < len(parent); i++ {
+	for i := 0; i < len(p.genes); i++ {
 		rowSum := 0
 		colSum := 0
-		for j := 0; j < len(parent); j++ {
-			rowSum += parent[i][j]
-			colSum += parent[j][i]
+		for j := 0; j < len(p.genes); j++ {
+			rowSum += p.genes[i][j]
+			colSum += p.genes[j][i]
 			if i == j {
-				seDiag += parent[i][j]
-				neDiag += parent[i][len(parent)-i-1]
+				seDiag += p.genes[i][j]
+				neDiag += p.genes[i][len(p.genes)-i-1]
 			}
 
 		}
@@ -56,37 +72,37 @@ func getFitness(parent [][]int, expectedSum int) int {
 	return sum
 }
 
-func display(parent [][]int, fitness int, start time.Time) {
+func display(p Chromosome, start time.Time) {
 	t := time.Now()
 	fmt.Println("\n-----------------------------------------------")
-	fmt.Println("Fitness: ", fitness)
+	fmt.Println("Fitness: ", p.fitness)
 	fmt.Println("Time taken: ", t.Sub(start))
 
-	for i := 0; i < len(parent); i++ {
-		for j := 0; j < len(parent); j++ {
-			fmt.Printf("%v\t", parent[i][j])
+	for i := 0; i < len(p.genes); i++ {
+		for j := 0; j < len(p.genes[0]); j++ {
+			fmt.Printf("%v\t", p.genes[i][j])
 		}
 		fmt.Println()
 	}
 }
 
-func mutate(parent [][]int) [][]int {
+func mutate(p Chromosome) Chromosome {
 	source := rand.NewSource(time.Now().UnixNano())
 	source1 := rand.NewSource(time.Now().UnixNano() + time.Now().UnixNano())
 	r := rand.New(source)
 	r1 := rand.New(source1)
 	for i := 0; i < 5; i++ {
 		for {
-			number := r.Intn(len(parent) * len(parent))
-			number1 := r1.Intn(len(parent) * len(parent))
+			number := r.Intn(len(p.genes) * len(p.genes))
+			number1 := r1.Intn(len(p.genes) * len(p.genes))
 			if number != number1 {
-				parent[int(math.Floor(float64(number/len(parent))))][number%len(parent)],
-					parent[int(math.Floor(float64(number1/len(parent))))][number1%len(parent)] = parent[int(math.Floor(float64(number1/len(parent))))][number1%len(parent)],
-					parent[int(math.Floor(float64(number/len(parent))))][number%len(parent)]
+				p.genes[int(math.Floor(float64(number/len(p.genes))))][number%len(p.genes)],
+					p.genes[int(math.Floor(float64(number1/len(p.genes))))][number1%len(p.genes)] = p.genes[int(math.Floor(float64(number1/len(p.genes))))][number1%len(p.genes)],
+					p.genes[int(math.Floor(float64(number/len(p.genes))))][number%len(p.genes)]
 				// fmt.Println(parent, number, number1)
 				break
 			}
 		}
 	}
-	return parent
+	return p
 }
