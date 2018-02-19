@@ -16,20 +16,20 @@ type Resource struct {
 	volume float64
 }
 
-type itemQuantity struct {
+type ItemQuantity struct {
 	item     Resource
 	quantity int
 }
 
-type fitness struct {
+type Fitness struct {
 	totalWeight float64
 	totalVolume float64
 	totalValue  float64
 }
 
 type Chromosome struct {
-	genes []itemQuantity
-	f     fitness
+	genes []ItemQuantity
+	f     Fitness
 	age   int
 }
 
@@ -39,7 +39,12 @@ func main() {
 	parent := Chromosome{}
 	bestParent := Chromosome{}
 	child := Chromosome{}
-	optimal := getFitness([]itemQuantity{itemQuantity{items[0], 1}, itemQuantity{items[1], 14}, itemQuantity{items[2], 6}})
+	historicalFitness := []Fitness{}
+	maxAge := 10
+	fmt.Println("Max age: ", maxAge)
+	source := rand.NewSource(time.Now().UnixNano())
+	r := rand.New(source)
+	optimal := getFitness([]ItemQuantity{ItemQuantity{items[0], 1}, ItemQuantity{items[1], 14}, ItemQuantity{items[2], 6}})
 	fmt.Println("\nOptimal Fitness:")
 	fmt.Printf("%+v\n", optimal)
 	maxWeight := 10.0
@@ -52,11 +57,68 @@ func main() {
 	for {
 		child.genes = mutate(parent.genes, items, maxWeight, maxVolume)
 		child.f = getFitness(child.genes)
+		if maxAge != -1 {
+			parent.age++
+			if maxAge < parent.age {
+				index := locateIndex(historicalFitness, child.f)
+				// fmt.Println("index: ", index)
+				diff := len(historicalFitness) - index
+				propotionalSimilar := math.Exp(float64(-1 * diff))
+				// fmt.Println("proportional Similar: ", propotionalSimilar)
+				x := r.Float64()
+				// fmt.Println(x)
+				if x < propotionalSimilar {
+					// fmt.Println("Copy child to parent")
+					copier.Copy(&parent, &child)
+				} else {
+					// fmt.Println("Copy bestparent to parent")
+					copier.Copy(&parent, &bestParent)
+					parent.age = 0
+				}
+			}
+			if compareFitness(child.f, parent.f) {
+				// fmt.Println("Copy child to parent")
+				copier.Copy(&parent, &child)
+				parent.age = 0
+
+			} else {
+				// fmt.Println("Update child age")
+				child.age = parent.age + 1
+				copier.Copy(&parent, &child)
+			}
+
+		}
+		if compareFitness(child.f, bestParent.f) {
+			// fmt.Println("Copy child to bestparent")
+			copier.Copy(&bestParent, &child)
+			historicalFitness = append(historicalFitness, child.f)
+			display(child, maxWeight, maxVolume, start)
+		}
+		if checkOptimal(bestParent.f, optimal) {
+			break
+		}
+
 	}
 }
 
-func compareFitness(c fitness, p fitness) bool {
+func checkOptimal(c Fitness, o Fitness) bool {
+	return c.totalValue == o.totalValue
+}
+
+func compareFitness(c Fitness, p Fitness) bool {
 	return c.totalValue > p.totalValue
+}
+
+func locateIndex(h []Fitness, f Fitness) int {
+	if len(h) == 0 {
+		return -1
+	}
+	for i, val := range h {
+		if compareFitness(f, val) {
+			return i
+		}
+	}
+	return 0
 }
 
 func display(ob Chromosome, maxW float64, maxV float64, start time.Time) {
@@ -70,7 +132,7 @@ func display(ob Chromosome, maxW float64, maxV float64, start time.Time) {
 	fmt.Printf("Total Value: %0.2f\nTotal Weight: %0.2f\t\tMaximum Weight: %0.2f\nTotal Volume: %0.2f\t\tMaximum Volume: %0.2f\n", ob.f.totalValue, ob.f.totalWeight, maxW, ob.f.totalVolume, maxV)
 }
 
-func getFitness(iq []itemQuantity) fitness {
+func getFitness(iq []ItemQuantity) Fitness {
 	totalWeight := 0.0
 	totalVolume := 0.0
 	totalValue := 0.0
@@ -79,20 +141,20 @@ func getFitness(iq []itemQuantity) fitness {
 		totalWeight += item.item.weight * float64(item.quantity)
 		totalVolume += item.item.volume * float64(item.quantity)
 	}
-	return fitness{totalWeight, totalVolume, totalValue}
+	return Fitness{totalWeight, totalVolume, totalValue}
 }
 
 func maxQuantity(item Resource, maxW float64, maxV float64) int {
 	return int(math.Min(math.Floor(maxW/item.weight), math.Floor(maxV/item.volume)))
 }
 
-func create(k []itemQuantity, items []Resource, maxW float64, maxV float64) []itemQuantity {
+func create(k []ItemQuantity, items []Resource, maxW float64, maxV float64) []ItemQuantity {
 	source := rand.NewSource(time.Now().UnixNano())
 	r := rand.New(source)
 	remainingV, remainingW := maxV, maxW
 	for i := 0; i <= r.Intn(len(items)); i++ {
 		newItem := add(k, items, remainingW, remainingV)
-		if newItem != (itemQuantity{}) {
+		if newItem != (ItemQuantity{}) {
 			k = append(k, newItem)
 			remainingW -= newItem.item.weight * float64(newItem.quantity)
 			remainingV -= newItem.item.volume * float64(newItem.quantity)
@@ -101,7 +163,7 @@ func create(k []itemQuantity, items []Resource, maxW float64, maxV float64) []it
 	return k
 }
 
-func add(k []itemQuantity, items []Resource, maxW float64, maxV float64) itemQuantity {
+func add(k []ItemQuantity, items []Resource, maxW float64, maxV float64) ItemQuantity {
 	usedItems := []Resource{}
 	x := 0
 	for _, val := range k {
@@ -123,13 +185,13 @@ func add(k []itemQuantity, items []Resource, maxW float64, maxV float64) itemQua
 	}
 	maxQ := maxQuantity(items[x], maxW, maxV)
 	if maxQ > 0.0 {
-		return itemQuantity{items[x], maxQ}
+		return ItemQuantity{items[x], maxQ}
 	}
-	return itemQuantity{}
+	return ItemQuantity{}
 }
 
-func mutate(kn []itemQuantity, items []Resource, maxW float64, maxV float64) []itemQuantity {
-	k := []itemQuantity{}
+func mutate(kn []ItemQuantity, items []Resource, maxW float64, maxV float64) []ItemQuantity {
+	k := []ItemQuantity{}
 	copier.Copy(&k, &kn)
 	Fit := getFitness(k)
 	remainingW := maxW - Fit.totalWeight
@@ -150,7 +212,7 @@ func mutate(kn []itemQuantity, items []Resource, maxW float64, maxV float64) []i
 	if ((remainingW > 0.0 || remainingV > 0.0) && len(k) == 0) || (len(k) < len(items) && r.Intn(10) == 1) {
 		// fmt.Println("########### Adding New Item ##################")
 		newItem := add(k, items, remainingW, remainingV)
-		if newItem != (itemQuantity{}) {
+		if newItem != (ItemQuantity{}) {
 			k = append(k, newItem)
 			remainingW -= newItem.item.weight * float64(newItem.quantity)
 			remainingV -= newItem.item.volume * float64(newItem.quantity)
@@ -171,7 +233,7 @@ func mutate(kn []itemQuantity, items []Resource, maxW float64, maxV float64) []i
 		maxQ := maxQuantity(itema, remainingW, remainingV)
 		// fmt.Println("\n\n\n\n", maxQ)
 		if maxQ > 0.0 {
-			k[idx] = itemQuantity{itema, maxQ}
+			k[idx] = ItemQuantity{itema, maxQ}
 		} else {
 			k[len(k)-1], k[idx] = k[idx], k[len(k)-1]
 			k = k[:len(k)-1]
@@ -181,7 +243,7 @@ func mutate(kn []itemQuantity, items []Resource, maxW float64, maxV float64) []i
 		maxQ := maxQuantity(itemb, remainingW, remainingV)
 		// fmt.Println("\n\n\n\n", maxQ)
 		if maxQ > 0.0 {
-			k[idx] = itemQuantity{itemb, maxQ}
+			k[idx] = ItemQuantity{itemb, maxQ}
 		} else {
 			k[len(k)-1], k[idx] = k[idx], k[len(k)-1]
 			k = k[:len(k)-1]
