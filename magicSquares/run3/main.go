@@ -5,6 +5,8 @@ import (
 	"math"
 	"math/rand"
 	"time"
+
+	"github.com/jinzhu/copier"
 )
 
 // Chromosome represents each
@@ -17,8 +19,9 @@ type Chromosome struct {
 func initialize(n int, expectedSum int) Chromosome {
 	parent := Chromosome{}
 	parent.genes = make([][]int, n, n)
+	list := rand.Perm(n * n)
 	for i := 0; i < (n * n); i++ {
-		parent.genes[int(math.Floor(float64(i/n)))] = append(parent.genes[int(math.Floor(float64(i/n)))], (i + 1))
+		parent.genes[int(math.Floor(float64(i/n)))] = append(parent.genes[int(math.Floor(float64(i/n)))], list[i]+1)
 	}
 	parent.fitness = getFitness(parent, expectedSum)
 	parent.age = 0
@@ -26,28 +29,81 @@ func initialize(n int, expectedSum int) Chromosome {
 }
 
 func main() {
+	source := rand.NewSource(time.Now().UnixNano())
+	r := rand.New(source)
+	var historicalFitness []int
+	maxAge := 500
 	start := time.Now()
 	n := 0
+	fmt.Println(maxAge)
 	fmt.Print("Enter the number whose magic square is required: ")
 	fmt.Scanln(&n)
-	geneSet := make([]int, n*n)
 	expectedSum := n * (n*n + 1) / 2
-	bestParent := initialize(n, expectedSum)
-	for i := 0; i < len(geneSet); i++ {
-		geneSet[i] = i + 1
-	}
+	parent := initialize(n, expectedSum)
+	bestParent := Chromosome{}
+	copier.Copy(&bestParent, &parent)
+	historicalFitness = append(historicalFitness, bestParent.fitness)
 	display(bestParent, start)
 	for {
-		child := mutate(bestParent)
+		// fmt.Println(historicalFitness)
+		child := mutate(parent)
 		child.fitness = getFitness(child, expectedSum)
+		if maxAge != -1 {
+			parent.age++
+			if maxAge < parent.age {
+				index := locateIndex(historicalFitness, child.fitness)
+				// fmt.Println("index: ", index)
+				diff := len(historicalFitness) - index
+				propotionalSimilar := math.Exp(float64(-1 * diff))
+				// fmt.Println("proportional Similar: ", propotionalSimilar)
+				x := r.Float64()
+				// fmt.Println(x)
+				if x < propotionalSimilar {
+					// fmt.Println("Copy child to parent")
+					copier.Copy(&parent, &child)
+				} else {
+					// fmt.Println("Copy bestparent to parent")
+					copier.Copy(&parent, &bestParent)
+					parent.age = 0
+				}
+			}
+			if child.fitness < parent.fitness {
+				// fmt.Println("Copy child to parent")
+				copier.Copy(&parent, &child)
+				parent.age = 0
+
+			} else {
+				// fmt.Println("Update child age")
+				child.age = parent.age + 1
+				copier.Copy(&parent, &child)
+			}
+
+		}
 		if child.fitness < bestParent.fitness {
-			bestParent = child
+			// fmt.Println("Copy child to bestparent")
+			copier.Copy(&bestParent, &child)
+			historicalFitness = append(historicalFitness, child.fitness)
 			display(child, start)
 		}
 		if bestParent.fitness == 0 {
 			break
 		}
 	}
+}
+
+func locateIndex(h []int, f int) int {
+	if len(h) == 0 {
+		return -1
+	}
+	// fmt.Println(h)
+	// fmt.Println("Value to match: ", f)
+	for i := len(h) - 1; i >= 0; i-- {
+		if f < h[i] {
+			// fmt.Println("Found: ", h[i])
+			return i
+		}
+	}
+	return 0
 }
 
 func getFitness(p Chromosome, expectedSum int) int {

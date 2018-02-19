@@ -17,8 +17,9 @@ type Chromosome struct {
 func initialize(n int, expectedSum int) Chromosome {
 	parent := Chromosome{}
 	parent.genes = make([][]int, n, n)
+	list := rand.Perm(n * n)
 	for i := 0; i < (n * n); i++ {
-		parent.genes[int(math.Floor(float64(i/n)))] = append(parent.genes[int(math.Floor(float64(i/n)))], (i + 1))
+		parent.genes[int(math.Floor(float64(i/n)))] = append(parent.genes[int(math.Floor(float64(i/n)))], list[i]+1)
 	}
 	parent.fitness = getFitness(parent, expectedSum)
 	parent.age = 0
