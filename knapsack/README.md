@@ -1,1 +1,3 @@
 Knapsack Problem:
+
+The aim in this is to fill a knapsack of known fixed weights and volumes with goods of fixed known weights and volumes with the intent of maximizing the total value of the contents in the knapsack. The problem is of an unbounded knapsack so we can fill more than one of each given item. We do solve this problem using a Genetic Algorithm approach while knowing the best answer for the problem. We use this optimal solution to help understand when we hae reached a suitable answer.
