@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"math"
 	"math/rand"
 	"os"
 	"sort"
@@ -37,58 +36,55 @@ func check(e error) {
 	}
 }
 
+var board [4][4]string
+var player gene
+var history []History
+var pitIssues = make(map[coords]string)
+var wumpusIssues = make(map[coords]string)
+var goldLocation = gene{c: coords{x: 2, y: 1}, facing: "default", victory: true, fire: false, score: 0, moves: 0}
+var fireCount = 1
+
 func main() {
 	f, err := os.Create("./output")
 	check(err)
-	var board [4][4]string
-	var playerLocation gene
-	var history []History
-	var pitIssues = make(map[coords]string)
-	var wumpusIssues = make(map[coords]string)
-	var goldLocation = gene{c: coords{x: 2, y: 1}, facing: "default", victory: true, fire: false, score: 0, moves: 0}
 	makeBoard(&board)
-	bestParent := setStartLocation(playerLocation)
-	bestFitness := getFitness(bestParent, goldLocation, &board)
-	display(bestParent, goldLocation, &board, bestFitness, &history, &pitIssues, &wumpusIssues)
+	player = setStartLocation(player)
+	display()
 	for i := 0; i < 100; i++ {
-		f.WriteString(strconv.Itoa(bestParent.c.y) +
-			"-" + strconv.Itoa(bestParent.c.y) +
-			"-" + string(bestParent.facing) +
-			"-" + strconv.Itoa(bestParent.moves) +
-			"-" + board[bestParent.c.x][bestParent.c.y] + "\n")
-		child := move(bestParent, &history, &board, &pitIssues, &wumpusIssues)
-		if child.victory == true {
+		f.WriteString(strconv.Itoa(player.c.y) +
+			"-" + strconv.Itoa(player.c.y) +
+			"-" + string(player.facing) +
+			"-" + strconv.Itoa(player.moves) +
+			"-" + board[player.c.x][player.c.y] + "\n")
+		player = move(player)
+		if player.victory == true {
 			fmt.Println("Found Gold!!!")
 			break
 		} else {
-			childFitness := getFitness(child, goldLocation, &board)
-			f.WriteString(strconv.Itoa(child.c.x) +
-				"-" + strconv.Itoa(child.c.y) +
-				"-" + string(child.facing) +
-				"-" + strconv.Itoa(child.moves) +
-				"-" + board[child.c.x][child.c.y] + "\n")
-			display(child, goldLocation, &board, childFitness, &history, &pitIssues, &wumpusIssues)
-			bestParent = child
-			bestFitness = childFitness
+			f.WriteString(strconv.Itoa(player.c.x) +
+				"-" + strconv.Itoa(player.c.y) +
+				"-" + string(player.facing) +
+				"-" + strconv.Itoa(player.moves) +
+				"-" + board[player.c.x][player.c.y] + "\n")
+			display()
 		}
 	}
 }
 
-func display(player gene, gold gene, board *[4][4]string, fitness float64, history *[]History, pitIssues *map[coords]string, wumpusIssues *map[coords]string) {
+func display() {
 	fmt.Println("------------------------------------------------")
-	fmt.Printf("Location: x-%v\t y-%v\t Direction:%v \tFitness:%v\nBoard Status: %s\nMoves:%v\nScore:%v\nGold Location: x-%v\t y-%v\n",
+	fmt.Printf("Location: x-%v\t y-%v\t Direction:%v\nBoard Status: %s\nMoves:%v\nScore:%v\nGold Location: x-%v\t y-%v\n",
 		player.c.x,
 		player.c.y,
 		player.facing,
-		fitness,
 		board[player.c.x][player.c.y],
 		player.moves,
 		player.score,
-		gold.c.x,
-		gold.c.y)
-	fmt.Println(history)
-	fmt.Println(pitIssues)
-	fmt.Println(wumpusIssues)
+		goldLocation.c.x,
+		goldLocation.c.y)
+	// fmt.Println(history)
+	// fmt.Println(pitIssues)
+	// fmt.Println(wumpusIssues)
 }
 func makeBoard(board *[4][4]string) {
 
@@ -117,22 +113,6 @@ func setStartLocation(q gene) gene {
 	return q
 }
 
-func getFitness(player gene, gold gene, board *[4][4]string) float64 {
-	boardStatus := strings.Split(board[player.c.x][player.c.y], ",")
-	for _, status := range boardStatus {
-		if status == "pit" || status == "wumpus" {
-			return -1.0
-		}
-	}
-	dist := math.Sqrt(math.Pow(float64(player.c.x-gold.c.x), 2) +
-		math.Pow(float64(player.c.y-gold.c.y), 2))
-	return float64(player.moves)/100 - dist/100
-}
-
-func compareFitness(f1 float64, f2 float64) bool {
-	return f1 >= f2
-}
-
 func moveForward(player gene) gene {
 	if player.facing == "W" {
 		player.c.x = player.c.x - 1
@@ -147,11 +127,11 @@ func moveForward(player gene) gene {
 	return player
 }
 
-func move(player gene, history *[]History, board *[4][4]string, pitIssues *map[coords]string, wumpusIssues *map[coords]string) gene {
+func move(player gene) gene {
 	prev := History{c: player.c, facing: player.facing, status: board[player.c.x][player.c.y]}
-	*history = append(*history, prev)
-	possibleLeft := checkTurnLeft(player, board)
-	possibleRight := checkTurnRight(player, board)
+	history = append(history, prev)
+	possibleLeft := checkTurnLeft(player)
+	possibleRight := checkTurnRight(player)
 	boardStatus := strings.Split(board[player.c.x][player.c.y], ",")
 	if len(boardStatus[0]) > 0 {
 		sort.Strings(boardStatus)
@@ -162,52 +142,57 @@ func move(player gene, history *[]History, board *[4][4]string, pitIssues *map[c
 			}
 		}
 		if boardStatus[0] == "breeze" && len(boardStatus) == 1 {
-			if next := moveForward(player); (*pitIssues)[next.c] == "-" {
+			if next := moveForward(player); checkMoveValidity(next) && (pitIssues)[next.c] == "-" {
 				return next
 			}
-			addPoW(player, history, pitIssues, "pit")
-			checkDiagonal(history, player, pitIssues, wumpusIssues, "breeze", "pit")
+			addPoW(player, &pitIssues, "pit")
+			checkDiagonal(player, &pitIssues, &wumpusIssues, "breeze", "pit")
 			fmt.Println("Backtracking!")
-			stepBack := backtrack(player, history)
-			return lOrR(checkTurnLeft(stepBack, board), checkTurnRight(stepBack, board), stepBack, board)
+			stepBack := backtrack(player)
+			return lOrR(checkTurnLeft(stepBack), checkTurnRight(stepBack), stepBack)
 		}
 		if boardStatus[0] == "stench" && len(boardStatus) == 1 {
-			if next := moveForward(player); (*wumpusIssues)[next.c] == "-" {
+			if next := moveForward(player); checkMoveValidity(next) && (wumpusIssues)[next.c] == "-" {
 				return next
 			}
-			addPoW(player, history, wumpusIssues, "wumpus")
-			checkDiagonal(history, player, wumpusIssues, pitIssues, "stench", "wumpus")
-			return checkAndFire(player, wumpusIssues, pitIssues, board)
+			addPoW(player, &wumpusIssues, "wumpus")
+			checkDiagonal(player, &wumpusIssues, &pitIssues, "stench", "wumpus")
+			if fireCount > 0 {
+				return checkAndFire(player)
+			}
+			return lOrR(possibleLeft, possibleRight, player)
+
 		}
 		if len(boardStatus) == 2 && boardStatus[0] == "breeze" && boardStatus[1] == "stench" {
 			fmt.Println("SPECIAL CASE!!!!")
-			if next := moveForward(player); (*pitIssues)[next.c] == "-" {
+			if next := moveForward(player); checkMoveValidity(next) && (pitIssues)[next.c] == "-" {
 				return next
 			}
-			return lOrR(possibleLeft, possibleRight, player, board)
+			return lOrR(possibleLeft, possibleRight, player)
 			// stepBack := backtrack(player, history)
-			// return lOrR(checkTurnLeft(stepBack, board), checkTurnRight(stepBack, board), stepBack, board)
+			// return lOrR(checkTurnLeft(stepBack), checkTurnRight(stepBack), stepBack)
 		}
 	} else {
+		fmt.Println("HERE!")
 		move := moveForward(player)
 		if checkMoveValidity(move) == false {
-			return lOrR(possibleLeft, possibleRight, player, board)
+			return lOrR(possibleLeft, possibleRight, player)
 		}
 		return move
 	}
-	return lOrR(possibleLeft, possibleRight, player, board)
+	return lOrR(possibleLeft, possibleRight, player)
 }
 
-func checkAndFire(player gene, wumpusIssues *map[coords]string, pitIssues *map[coords]string, board *[4][4]string) gene {
-	for key, wumpus := range *wumpusIssues {
+func checkAndFire(player gene) gene {
+	for key, wumpus := range wumpusIssues {
 		if wumpus == "wumpus" {
-			if (*pitIssues)[key] != "pit" {
+			if (pitIssues)[key] != "pit" {
 				if ok, direction := checkProximity(player, key); ok {
 					if player.facing != direction {
-						player = align(player, direction, board)
+						player = align(player, direction)
 					}
 					player.moves++
-					if fire(player, wumpusIssues, board) {
+					if fire(player, wumpusIssues) {
 						player.score++
 					}
 
@@ -219,57 +204,57 @@ func checkAndFire(player gene, wumpusIssues *map[coords]string, pitIssues *map[c
 	return player
 }
 
-func align(player gene, direction string, board *[4][4]string) gene {
+func align(player gene, direction string) gene {
 	if player.facing == "N" {
 		if direction == "S" {
-			return turnLeft(turnLeft(player, board), board)
+			return turnLeft(turnLeft(player))
 		}
 		if direction == "W" {
-			return turnLeft(player, board)
+			return turnLeft(player)
 		}
 		if direction == "E" {
-			return turnRight(player, board)
+			return turnRight(player)
 		}
 	} else if player.facing == "E" {
 		if direction == "W" {
-			return turnLeft(turnLeft(player, board), board)
+			return turnLeft(turnLeft(player))
 		}
 		if direction == "N" {
-			return turnLeft(player, board)
+			return turnLeft(player)
 		}
 		if direction == "S" {
-			return turnRight(player, board)
+			return turnRight(player)
 		}
 	} else if player.facing == "W" {
 		if direction == "E" {
-			return turnLeft(turnLeft(player, board), board)
+			return turnLeft(turnLeft(player))
 		}
 		if direction == "S" {
-			return turnLeft(player, board)
+			return turnLeft(player)
 		}
 		if direction == "N" {
-			return turnRight(player, board)
+			return turnRight(player)
 		}
 	} else if player.facing == "S" {
 		if direction == "N" {
-			return turnLeft(turnLeft(player, board), board)
+			return turnLeft(turnLeft(player))
 		}
 		if direction == "E" {
-			return turnLeft(player, board)
+			return turnLeft(player)
 		}
 		if direction == "W" {
-			return turnRight(player, board)
+			return turnRight(player)
 		}
 	}
 	return player
 }
 
-func fire(player gene, issues *map[coords]string, board *[4][4]string) bool {
+func fire(player gene, wumpuIssues map[coords]string) bool {
 	var flag = false
 	var index = -1
+	fireCount--
 	for {
 		player = moveForward(player)
-		fmt.Println(player)
 		if (player.c.x > -1 && player.c.x < 4) && (player.c.y > -1 && player.c.y < 4) {
 			status := strings.Split(board[player.c.x][player.c.y], ",")
 			for i, val := range status {
@@ -281,7 +266,7 @@ func fire(player gene, issues *map[coords]string, board *[4][4]string) bool {
 			if flag == true {
 				board[player.c.x][player.c.y] = strings.Join(append(status[:index], status[index+1:]...), ",")
 			}
-			checkAndDelete(coords{x: player.c.x, y: player.c.y}, issues)
+			checkAndDelete(coords{x: player.c.x, y: player.c.y}, &wumpusIssues)
 		} else {
 			break
 		}
@@ -306,7 +291,7 @@ func checkProximity(player gene, point coords) (bool, string) {
 	return false, ""
 }
 
-func checkDiagonal(history *[]History, player gene, issues *map[coords]string, secondaryIssues *map[coords]string, value1 string, value2 string) {
+func checkDiagonal(player gene, issues *map[coords]string, secondaryIssues *map[coords]string, value1 string, value2 string) {
 
 	var value3 string
 	if value1 == "breeze" {
@@ -314,12 +299,12 @@ func checkDiagonal(history *[]History, player gene, issues *map[coords]string, s
 	} else {
 		value3 = "breeze"
 	}
-	if len(*history) < 2 {
+	if len(history) < 2 {
 		return
 	}
 	var flag = false
-	from := (*history)[len(*history)-2].c
-	for _, value := range *history {
+	from := (history)[len(history)-2].c
+	for _, value := range history {
 		var status = strings.Split(value.status, ",")
 		for _, v := range status {
 			if v == value1 {
@@ -328,12 +313,9 @@ func checkDiagonal(history *[]History, player gene, issues *map[coords]string, s
 		}
 		if flag == true {
 			diags := getDiags(value.c)
-			fmt.Println(diags)
 			for _, val := range diags {
-				fmt.Println(val)
-				if checkHistoryForStatus(val, history) == value1 {
+				if checkHistoryForStatus(val) == value1 {
 					if (val == coords{x: value.c.x - 1, y: value.c.y - 1}) {
-						fmt.Println("Case 1")
 						if value.c.x-1 != from.x &&
 							value.c.y != from.y &&
 							(*issues)[coords{x: value.c.x - 1, y: value.c.y}] != "-" {
@@ -395,7 +377,7 @@ func checkDiagonal(history *[]History, player gene, issues *map[coords]string, s
 						}
 					}
 				} else {
-					var status = strings.Split(checkHistoryForStatus(val, history), ",")
+					var status = strings.Split(checkHistoryForStatus(val), ",")
 					for _, v := range status {
 						if v == value3 {
 
@@ -433,8 +415,8 @@ func checkAndDelete(point coords, issues *map[coords]string) {
 	(*issues)[point] = "-"
 }
 
-func checkHistoryForStatus(point coords, history *[]History) string {
-	for _, value := range *history {
+func checkHistoryForStatus(point coords) string {
+	for _, value := range history {
 		if value.c.x == point.x && value.c.y == point.y {
 			return value.status
 		}
@@ -459,10 +441,8 @@ func getDiags(point coords) []coords {
 	return diag
 }
 
-func addPoW(player gene, history *[]History, issues *map[coords]string, value string) {
-	from := (*history)[len(*history)-2].c
-	fmt.Println("From::")
-	fmt.Println(from)
+func addPoW(player gene, issues *map[coords]string, value string) {
+	from := (history)[len(history)-2].c
 	if (player.c.x-1 > -1 && player.c.x-1 < 4) && (player.c.x-1 == from.x && player.c.y == from.y) == false {
 		(*issues)[coords{x: player.c.x - 1, y: player.c.y}] = value
 	}
@@ -477,35 +457,35 @@ func addPoW(player gene, history *[]History, issues *map[coords]string, value st
 	}
 }
 
-func checkStagnant(history *[]History) bool {
-	max := len(*history)
-	if (*history)[max-1] == (*history)[max-2] {
+func checkStagnant() bool {
+	max := len(history)
+	if (history)[max-1] == (history)[max-2] {
 		return true
 	}
 	return false
 }
 
-func backtrack(player gene, history *[]History) gene {
-	max := len(*history)
-	player.c = (*history)[max-2].c
-	player.facing = (*history)[max-2].facing
+func backtrack(player gene) gene {
+	max := len(history)
+	player.c = (history)[max-2].c
+	player.facing = (history)[max-2].facing
 	player.moves = player.moves + 1
 	return player
 }
 
-func lOrR(possibleLeft bool, possibleRight bool, player gene, board *[4][4]string) gene {
+func lOrR(possibleLeft bool, possibleRight bool, player gene) gene {
 	s1 := rand.NewSource(time.Now().UnixNano())
 	r1 := rand.New(s1)
 	if possibleLeft == true {
 		if possibleRight == true {
 			if r1.Intn(2) == 0 {
-				return turnLeft(player, board)
+				return turnLeft(player)
 			}
-			return turnRight(player, board)
+			return turnRight(player)
 		}
-		return turnLeft(player, board)
+		return turnLeft(player)
 	}
-	return turnRight(player, board)
+	return turnRight(player)
 }
 
 func checkMoveValidity(player gene) bool {
@@ -515,7 +495,7 @@ func checkMoveValidity(player gene) bool {
 	return false
 }
 
-func turnLeft(player gene, board *[4][4]string) gene {
+func turnLeft(player gene) gene {
 	if player.facing == "N" {
 		player.facing = "W"
 		// player.x = player.x - 1
@@ -534,7 +514,7 @@ func turnLeft(player gene, board *[4][4]string) gene {
 	return player
 }
 
-func turnRight(player gene, board *[4][4]string) gene {
+func turnRight(player gene) gene {
 	if player.facing == "S" {
 		player.facing = "W"
 		// player.x = player.x - 1
@@ -553,7 +533,7 @@ func turnRight(player gene, board *[4][4]string) gene {
 	return player
 }
 
-func checkTurnLeft(player gene, board *[4][4]string) bool {
+func checkTurnLeft(player gene) bool {
 	if player.facing == "N" {
 		if player.c.x-1 > -1 {
 			return true
@@ -574,7 +554,7 @@ func checkTurnLeft(player gene, board *[4][4]string) bool {
 	return false
 }
 
-func checkTurnRight(player gene, board *[4][4]string) bool {
+func checkTurnRight(player gene) bool {
 	if player.facing == "N" {
 		if player.c.x+1 < 4 {
 			return true
