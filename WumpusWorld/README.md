@@ -19,3 +19,24 @@ The agent can Grab a portable object at the current square or it can Release an 
 The agent can Climb out of the cave if at the Start square.
 The Start square is (1,1) and initially the agent is facing east. The agent dies if it is in the same square as the wumpus.
 The objective of the game is to kill the wumpus, to pick up the gold, and to climb out with it.
+
+Example board:
+
+	+---------+---------+---------+---------+
+ 4	| stench  |         | breeze  |  pit    |
+	|         |         |	      |         |
+	|         |         |	      |         |
+	+---------+---------+---------+---------+
+3	| wumpus  | stench  | pit     | breeze  |
+	|         | breeze  |	      |         |
+	|         | gold    |	      |         |
+	+---------+---------+---------+---------+
+2	| stench  |         | breeze  |         |
+	|         |         |	      |         |
+	|         |         |	      |         |
+	+---------+---------+---------+---------+
+1	| start   | breeze  | pit     | breeze  |
+	|         |         |	      |         |
+	|   ==>   |         |	      |         |
+	+---------+---------+---------+---------+
+	    1         2         3         4
