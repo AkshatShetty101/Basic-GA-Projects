@@ -41,17 +41,16 @@ var player gene
 var history []History
 var pitIssues = make(map[coords]string)
 var wumpusIssues = make(map[coords]string)
-var goldLocation = gene{c: coords{x: 2, y: 1}, facing: "default", victory: true, fire: false, score: 0, moves: 0}
+var goldLocation = gene{c: coords{x: 1, y: 2}, facing: "default", victory: true, fire: false, score: 0, moves: 0}
 var fireCount = 1
+var f, err = os.Create("./output")
 
 func main() {
-	f, err := os.Create("./output")
-	check(err)
 	makeBoard(&board)
 	player = setStartLocation(player)
 	display()
 	for i := 0; i < 100; i++ {
-		f.WriteString(strconv.Itoa(player.c.y) +
+		f.WriteString(strconv.Itoa(player.c.x) +
 			"-" + strconv.Itoa(player.c.y) +
 			"-" + string(player.facing) +
 			"-" + strconv.Itoa(player.moves) +
@@ -60,14 +59,8 @@ func main() {
 		if player.victory == true {
 			fmt.Println("Found Gold!!!")
 			break
-		} else {
-			f.WriteString(strconv.Itoa(player.c.x) +
-				"-" + strconv.Itoa(player.c.y) +
-				"-" + string(player.facing) +
-				"-" + strconv.Itoa(player.moves) +
-				"-" + board[player.c.x][player.c.y] + "\n")
-			display()
 		}
+		display()
 	}
 }
 
@@ -92,9 +85,9 @@ func makeBoard(board *[4][4]string) {
 	board[2][0] = "pit"
 	board[3][0] = "breeze"
 	board[0][1] = "stench"
-	board[2][1] = "breeze,gold"
+	board[2][1] = "breeze"
 	board[0][2] = "wumpus"
-	board[1][2] = "breeze,stench"
+	board[1][2] = "breeze,stench,gold"
 	board[2][2] = "pit"
 	board[3][2] = "breeze"
 	board[0][3] = "stench"
@@ -127,6 +120,16 @@ func moveForward(player gene) gene {
 	return player
 }
 
+func countWumpus() int {
+	count := 0
+	for _, val := range wumpusIssues {
+		if val == "wumpus" {
+			count++
+		}
+	}
+	return count
+}
+
 func move(player gene) gene {
 	prev := History{c: player.c, facing: player.facing, status: board[player.c.x][player.c.y]}
 	history = append(history, prev)
@@ -157,7 +160,7 @@ func move(player gene) gene {
 			}
 			addPoW(player, &wumpusIssues, "wumpus")
 			checkDiagonal(player, &wumpusIssues, &pitIssues, "stench", "wumpus")
-			if fireCount > 0 {
+			if fireCount > 0 && countWumpus() == 1 {
 				return checkAndFire(player)
 			}
 			return lOrR(possibleLeft, possibleRight, player)
@@ -169,8 +172,6 @@ func move(player gene) gene {
 				return next
 			}
 			return lOrR(possibleLeft, possibleRight, player)
-			// stepBack := backtrack(player, history)
-			// return lOrR(checkTurnLeft(stepBack), checkTurnRight(stepBack), stepBack)
 		}
 	} else {
 		fmt.Println("HERE!")
@@ -253,6 +254,7 @@ func fire(player gene, wumpuIssues map[coords]string) bool {
 	var flag = false
 	var index = -1
 	fireCount--
+	f.WriteString("Fire\n")
 	for {
 		player = moveForward(player)
 		if (player.c.x > -1 && player.c.x < 4) && (player.c.y > -1 && player.c.y < 4) {
@@ -498,15 +500,11 @@ func checkMoveValidity(player gene) bool {
 func turnLeft(player gene) gene {
 	if player.facing == "N" {
 		player.facing = "W"
-		// player.x = player.x - 1
 	} else if player.facing == "S" {
 		player.facing = "E"
-		// player.x = player.x + 1
 	} else if player.facing == "E" {
 		player.facing = "N"
-		// player.y = player.y + 1
 	} else {
-		// player.y = player.y - 1
 		player.facing = "S"
 	}
 	player.fire = false
@@ -517,15 +515,11 @@ func turnLeft(player gene) gene {
 func turnRight(player gene) gene {
 	if player.facing == "S" {
 		player.facing = "W"
-		// player.x = player.x - 1
 	} else if player.facing == "N" {
 		player.facing = "E"
-		// player.x = player.x + 1
 	} else if player.facing == "W" {
 		player.facing = "N"
-		// player.y = player.y + 1
 	} else {
-		// player.y = player.y - 1
 		player.facing = "S"
 	}
 	player.fire = false
