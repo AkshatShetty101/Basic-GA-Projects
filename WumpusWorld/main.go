@@ -19,6 +19,7 @@ type History struct {
 	c      coords
 	facing string
 	status string
+	fire   bool
 }
 
 type gene struct {
@@ -54,6 +55,7 @@ func main() {
 			"-" + strconv.Itoa(player.c.y) +
 			"-" + string(player.facing) +
 			"-" + strconv.Itoa(player.moves) +
+			"-" + strconv.FormatBool(player.fire) +
 			"-" + board[player.c.x][player.c.y] + "\n")
 		player = move(player)
 		if player.victory == true {
@@ -62,6 +64,7 @@ func main() {
 		}
 		display()
 	}
+	returnHome(player)
 }
 
 func display() {
@@ -75,9 +78,9 @@ func display() {
 		player.score,
 		goldLocation.c.x,
 		goldLocation.c.y)
-	// fmt.Println(history)
-	// fmt.Println(pitIssues)
-	// fmt.Println(wumpusIssues)
+	fmt.Printf("History: %v\n", history)
+	fmt.Printf("Possible Pits: %v\n", pitIssues)
+	fmt.Printf("Possible Wumpus: %v\n", wumpusIssues)
 }
 func makeBoard(board *[4][4]string) {
 
@@ -131,8 +134,9 @@ func countWumpus() int {
 }
 
 func move(player gene) gene {
-	prev := History{c: player.c, facing: player.facing, status: board[player.c.x][player.c.y]}
+	prev := History{c: player.c, facing: player.facing, fire: player.fire, status: board[player.c.x][player.c.y]}
 	history = append(history, prev)
+	player.fire = false
 	possibleLeft := checkTurnLeft(player)
 	possibleRight := checkTurnRight(player)
 	boardStatus := strings.Split(board[player.c.x][player.c.y], ",")
@@ -174,7 +178,6 @@ func move(player gene) gene {
 			return lOrR(possibleLeft, possibleRight, player)
 		}
 	} else {
-		fmt.Println("HERE!")
 		move := moveForward(player)
 		if checkMoveValidity(move) == false {
 			return lOrR(possibleLeft, possibleRight, player)
@@ -193,6 +196,7 @@ func checkAndFire(player gene) gene {
 						player = align(player, direction)
 					}
 					player.moves++
+					player.fire = true
 					if fire(player, wumpusIssues) {
 						player.score++
 					}
@@ -250,11 +254,25 @@ func align(player gene, direction string) gene {
 	return player
 }
 
+func returnHome(player gene) {
+	moves := player.moves + 1
+	for j := len(history) - 2; j >= 0; j-- {
+		if history[j].fire == false {
+			f.WriteString(strconv.Itoa(history[j].c.x) +
+				"-" + strconv.Itoa(history[j].c.y) +
+				"-" + string(history[j].facing) +
+				"-" + strconv.Itoa(moves) +
+				"-" + strconv.FormatBool(history[j].fire) +
+				"-" + board[history[j].c.x][history[j].c.y] + "\n")
+			moves++
+		}
+	}
+}
+
 func fire(player gene, wumpuIssues map[coords]string) bool {
 	var flag = false
 	var index = -1
 	fireCount--
-	f.WriteString("Fire\n")
 	for {
 		player = moveForward(player)
 		if (player.c.x > -1 && player.c.x < 4) && (player.c.y > -1 && player.c.y < 4) {
