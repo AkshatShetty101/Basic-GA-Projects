@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/jinzhu/copier"
@@ -61,10 +62,10 @@ func main() {
 
 	original := setBoard()
 	for {
-		original = *moveComputer(&original)
-		display(&original)
 		mimicPlayerMove(&original)
 		evaluateStatus(&original)
+		display(&original)
+		original = *moveComputer(&original)
 		display(&original)
 	}
 
@@ -119,12 +120,13 @@ func mimicPlayerMove(game *Instance) {
 
 func display(game *Instance) {
 	for i := 0; i < height; i++ {
-		fmt.Print("|")
+		fmt.Print(strconv.Itoa(i) + " |")
 		for j := 0; j < width; j++ {
 			fmt.Print(" " + string(game.board[i][j]) + " | ")
 		}
-		fmt.Println()
+		fmt.Println("\n -----------------------------------")
 	}
+	fmt.Println("    0   1    2    3    4    5    6")
 	fmt.Println("Threats: ", game.threats)
 	fmt.Println("Attacks: ", game.attacks)
 }
